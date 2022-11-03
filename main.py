@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse
+
+
 from src.auth import AuthHandler
 from src import schemas
 from src.deta import DetaHelper
@@ -10,33 +12,19 @@ auth_handler = AuthHandler()
 deta_helper = DetaHelper()
 
 
-@app.middleware("http")
-async def auth_middleware(request: Request, call_next):
-    if request.url.path not in [
-        "/login",
-        "/register",
-        "/docs",
-        "/redoc",
-        "/openapi.json",
-        "/",
-    ]:
-        try:
-            auth_handler.decode_token(request.headers["Authorization"].split(" ")[1])
-        except HTTPException:
-            return RedirectResponse("/login")
-        except:
-            return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
-    return await call_next(request)
-
-
 @app.get("/", include_in_schema=False)
 async def docs_redirect():
     return RedirectResponse(url="/docs")
 
 
-@app.post("/register", status_code=201)
+@app.get("/auth", tags=["Auth"])
+async def auth(auth=Depends(auth_handler.auth_wrapper)):
+    return {"auth": auth}
+
+
+@app.post("/register", status_code=201, tags=["Auth"])
 async def register(user: schemas.User):
-    if user.username in deta_helper.get_users():
+    if user.username in deta_helper.get_users_list():
         raise HTTPException(status_code=400, detail="Username is taken")
 
     hashed_password = auth_handler.get_password_hash(user.password)
@@ -51,7 +39,7 @@ async def register(user: schemas.User):
     return {"message": f"User {user.username} created successfully"}
 
 
-@app.post("/login")
+@app.post("/login", tags=["Auth"])
 async def login(user: schemas.User):
     users_list = deta_helper.get_users_list()
     if user.username not in users_list:
@@ -64,12 +52,7 @@ async def login(user: schemas.User):
     if not password_verified:
         raise HTTPException(status_code=400, detail="Invalid password")
 
-    return {"token": auth_handler.encode_token()}
-
-
-@app.get("/protected")
-async def protected(username=Depends(auth_handler.decode_token)):
-    return {"name": username}
+    return {"token": auth_handler.encode_token(), "type": "bearer"}
 
 
 if __name__ == "__main__":
