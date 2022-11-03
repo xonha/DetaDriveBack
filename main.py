@@ -12,7 +12,7 @@ deta_helper = DetaHelper()
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    if request.url.path not in ["/login", "/register"]:
+    if request.url.path not in ["/login", "/register", "/docs", "/"]:
         try:
             auth_handler.decode_token(request.headers["Authorization"].split(" ")[1])
         except HTTPException:
@@ -20,6 +20,11 @@ async def auth_middleware(request: Request, call_next):
         except:
             return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
     return await call_next(request)
+
+
+@app.get("/")
+async def docs_redirect():
+    return RedirectResponse(url="/docs")
 
 
 @app.post("/register", status_code=201)
