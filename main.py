@@ -12,7 +12,14 @@ deta_helper = DetaHelper()
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    if request.url.path not in ["/login", "/register", "/docs", "/"]:
+    if request.url.path not in [
+        "/login",
+        "/register",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/",
+    ]:
         try:
             auth_handler.decode_token(request.headers["Authorization"].split(" ")[1])
         except HTTPException:
@@ -22,7 +29,7 @@ async def auth_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def docs_redirect():
     return RedirectResponse(url="/docs")
 
@@ -58,12 +65,6 @@ async def login(user: schemas.User):
         raise HTTPException(status_code=400, detail="Invalid password")
 
     return {"token": auth_handler.encode_token()}
-
-
-@app.get("/hello")
-async def hello(oi: Request):
-    print(oi)
-    return {"message": f"Hello World"}
 
 
 @app.get("/protected")
