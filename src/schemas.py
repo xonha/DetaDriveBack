@@ -26,8 +26,8 @@ class File(BaseModel):
 
 
 class FileUpdate(BaseModel):
-    name: str
-    owner_key: str
+    name: Optional[str]
+    owner_key: Optional[str]
 
 
 class Record(BaseModel):

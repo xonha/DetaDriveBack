@@ -67,12 +67,12 @@ async def delete_file(file_key: str, user_key: str) -> schemas.Record:
 
 
 async def update_file(
-    file_key: str, updates: schemas.FileUpdate, user_key: str
+    file_key: str, updates: dict, user_key: str
 ) -> schemas.Record:
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    update_dict = {"last_modified": str(datetime.datetime.now()), **updates.dict()}
+    update_dict = {"last_modified": str(datetime.datetime.now()), **updates}
 
     try:
         tbl_files.update(updates=update_dict, key=file_key)
