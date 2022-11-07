@@ -65,7 +65,9 @@ async def update_file(
     auth=Depends(auth_handler.auth_middleware),
 ):
     payload = request.get("state")["payload"]
-    return await deta.update_file(file_key=file_key, updates=data, user_key=payload["key"])
+    return await deta.update_file(
+        file_key=file_key, updates=dict(data), user_key=payload["key"]
+    )
 
 
 @app.get("/files", tags=["Storage"])
