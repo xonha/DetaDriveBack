@@ -4,5 +4,4 @@ bcrypt
 PyJWT
 passlib
 deta
-
-black
+python-multipart
