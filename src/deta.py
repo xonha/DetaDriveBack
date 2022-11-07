@@ -72,7 +72,9 @@ async def update_file(
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    update_dict = {"last_modified": str(datetime.datetime.now()), **updates}
+    clean_updates = _remove_none_from_dict(updates)
+
+    update_dict = {"last_modified": str(datetime.datetime.now()), **clean_updates}
 
     try:
         tbl_files.update(updates=update_dict, key=file_key)
@@ -105,3 +107,6 @@ async def download_file(file_key: str, user_key: str) -> schemas.Record:
         media_type=file["content_type"],
         headers={"Content-Disposition": f"attachment; filename={file['name']}"},
     )
+
+def _remove_none_from_dict(d: dict) -> dict:
+    return {k: v for k, v in d.items() if v is not None}
