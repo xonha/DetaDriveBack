@@ -10,7 +10,7 @@ class AuthHandler:
     security = HTTPBearer()
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-    secret_key = os.getenv("DETA_PROJECT_KEY")
+    secret_key = os.environ["DETA_PROJECT_KEY"]
     algorithm = "HS256"
 
     def get_password_hash(self, password):

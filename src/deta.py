@@ -46,15 +46,16 @@ async def insert_file(file: UploadFile, user_key: str):
     if file_size > 52428800:
         raise HTTPException(status_code=400, detail="File size is too large")
 
-    data = {
-        "name": file.filename,
-        "size": file_size,
-        "owner_key": user_key,
-        "content_type": file.content_type,
-        "last_modified": str(datetime.datetime.now()),
-    }
+    data = schemas.File(
+        name=file.filename,
+        size=file_size,
+        owner_key=user_key,
+        content_type=file.content_type,
+        last_modified=str(datetime.datetime.now()),
+    )
+
     try:
-        res_base = tbl_files.insert(data=data)
+        res_base = tbl_files.insert(data=data.dict())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     try:
@@ -67,7 +68,7 @@ async def insert_file(file: UploadFile, user_key: str):
     return JSONResponse(res_base)
 
 
-async def delete_file(file_key: str, user_key: str) -> schemas.Record:
+async def delete_file(file_key: str, user_key: str):
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
     try:
@@ -78,7 +79,7 @@ async def delete_file(file_key: str, user_key: str) -> schemas.Record:
     return {"message": f'File "{res}" deleted successfully'}
 
 
-async def update_file(file_key: str, updates: dict, user_key: str) -> schemas.Record:
+async def update_file(file_key: str, updates: dict, user_key: str):
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -101,7 +102,7 @@ async def list_all_files(user_key: str) -> schemas.File:
     return res
 
 
-async def download_file(file_key: str, user_key: str) -> schemas.Record:
+async def download_file(file_key: str, user_key: str):
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
     try:

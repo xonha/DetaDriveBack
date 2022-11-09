@@ -23,6 +23,7 @@ class File(BaseModel):
     owner_key: str
     content_type: str
     last_modified: str
+    deleted: bool = False
 
 
 class FileUpdate(BaseModel):
