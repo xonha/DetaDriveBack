@@ -24,7 +24,7 @@ async def register(user: schemas.UserLogin):
     user_to_insert = schemas.User(username=user.username, password=hashed_password)
     deta.insert_user(user_to_insert)
 
-    return {"message": f'User "{user.username}" created successfully'}
+    return {"message": f"User {user.username} created successfully"}
 
 
 @app.post("/login", tags=["Auth"])
