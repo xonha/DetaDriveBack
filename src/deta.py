@@ -71,6 +71,9 @@ async def insert_file(file: UploadFile, user_key: str):
 async def delete_file(file_key: str, user_key: str):
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
+
+    if tbl_files.fetch({"key": file_key}).items[0]["deleted"] == False:
+        raise HTTPException(status_code=403, detail="File is not in trash")
     try:
         tbl_files.delete(file_key)
         res = bkt_storage.delete(file_key)
@@ -101,9 +104,38 @@ async def get_files(user_key: str) -> schemas.File:
         raise HTTPException(status_code=404, detail=str(e))
 
 
+async def get_file(file_key: str, user_key: str):
+    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        return tbl_files.fetch({"key": file_key}).items[0]
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 async def get_trash(user_key: str) -> schemas.File:
     try:
         return tbl_files.fetch({"owner_key": user_key, "deleted": True}).items
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def send_to_trash(file_key: str, user_key: str):
+    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        tbl_files.update(updates={"deleted": True}, key=file_key)
+        return {"message": f"File ({file_key}) sent to trash successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def restore_file(file_key: str, user_key: str):
+    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        tbl_files.update(updates={"deleted": False}, key=file_key)
+        return {"message": f"File ({file_key}) restored successfully"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 

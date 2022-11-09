@@ -52,14 +52,6 @@ async def upload_file(
     return await deta.insert_file(file=file, user_key=payload["key"])
 
 
-@app.delete("/file/{file_key}", tags=["Storage"])
-async def delete_file(
-    file_key: str, request: Request, auth=Depends(auth_handler.auth_middleware)
-):
-    payload = request.get("state")["payload"]  # type: ignore
-    return await deta.delete_file(file_key=file_key, user_key=payload["key"])
-
-
 @app.patch("/file/{file_key}", tags=["Storage"])
 async def update_file(
     file_key: str,
@@ -73,24 +65,56 @@ async def update_file(
     )
 
 
+@app.delete("/file/{file_key}", tags=["Storage"])
+async def send_to_trash(
+    file_key: str, request: Request, auth=Depends(auth_handler.auth_middleware)
+):
+    payload = request.get("state")["payload"]  # type: ignore
+    return await deta.send_to_trash(file_key=file_key, user_key=payload["key"])
+
+
+@app.get("/file/{file_key}", tags=["Storage"])
+async def get_file(
+    file_key: str, request: Request, auth=Depends(auth_handler.auth_middleware)
+):
+    payload = request.get("state")["payload"]  # type: ignore
+    return await deta.get_file(file_key=file_key, user_key=payload["key"])
+
+
+@app.get("/file/{file_key}/download", tags=["Storage"])
+async def download_file(
+    file_key: str, request: Request, auth=Depends(auth_handler.auth_middleware)
+):
+    payload = request.get("state")["payload"]  # type: ignore
+    return await deta.download_file(file_key=file_key, user_key=payload["key"])
+
+
 @app.get("/files", tags=["Storage"])
 async def get_files(request: Request, auth=Depends(auth_handler.auth_middleware)):
     payload = request.get("state")["payload"]  # type: ignore
     return await deta.get_files(user_key=payload["key"])
 
 
-@app.get("/trash", tags=["Storage"])
+@app.get("/trash", tags=["Trash"])
 async def get_trash(request: Request, auth=Depends(auth_handler.auth_middleware)):
     payload = request.get("state")["payload"]  # type: ignore
     return await deta.get_trash(user_key=payload["key"])
 
 
-@app.get("/download/{file_key}", tags=["Storage"])
-async def download_file(
+@app.patch("/trash/{file_key}", tags=["Trash"])
+async def restore_file(
     file_key: str, request: Request, auth=Depends(auth_handler.auth_middleware)
 ):
     payload = request.get("state")["payload"]  # type: ignore
-    return await deta.download_file(file_key=file_key, user_key=payload["key"])
+    return await deta.restore_file(file_key=file_key, user_key=payload["key"])
+
+
+@app.delete("/trash/{file_key}", tags=["Trash"])
+async def delete_file(
+    file_key: str, request: Request, auth=Depends(auth_handler.auth_middleware)
+):
+    payload = request.get("state")["payload"]  # type: ignore
+    return await deta.delete_file(file_key=file_key, user_key=payload["key"])
 
 
 if __name__ == "__main__":
