@@ -10,24 +10,24 @@ from fastapi.exceptions import HTTPException
 
 deta_key = os.getenv("DETA_PROJECT_KEY")
 
-deta = deta.Deta(deta_key)
+_deta = deta.Deta(deta_key)
 
-bkt_storage = deta.Drive("storage")
+bkt_storage = _deta.Drive("storage")
 
-tbl_users = deta.Base("users")
-tbl_files = deta.Base("files")
-tbl_users_files = deta.Base("users_files")
+tbl_users = _deta.Base("users")
+tbl_files = _deta.Base("files")
+tbl_users_files = _deta.Base("users_files")
 
 
 def get_user_by_username(username: str) -> schemas.User:
     return tbl_users.fetch({"username": username}).items[0]
 
 
-def insert_user(user: schemas.User):
+def insert_user(user: schemas.UserLogin):
     return tbl_users.insert(user)
 
 
-async def insert_file(file: UploadFile, user_key: str) -> schemas.File:
+async def insert_file(file: UploadFile, user_key: str):
     file_bytes = await file.read()
     file_size = len(file_bytes)
 
@@ -66,9 +66,7 @@ async def delete_file(file_key: str, user_key: str) -> schemas.Record:
     return {"message": f'File "{res}" deleted successfully'}
 
 
-async def update_file(
-    file_key: str, updates: dict, user_key: str
-) -> schemas.Record:
+async def update_file(file_key: str, updates: dict, user_key: str) -> schemas.Record:
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -107,6 +105,7 @@ async def download_file(file_key: str, user_key: str) -> schemas.Record:
         media_type=file["content_type"],
         headers={"Content-Disposition": f"attachment; filename={file['name']}"},
     )
+
 
 def _remove_none_from_dict(d: dict) -> dict:
     return {k: v for k, v in d.items() if v is not None}
