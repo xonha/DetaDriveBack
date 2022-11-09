@@ -10,7 +10,7 @@ from fastapi.exceptions import HTTPException
 
 deta_key = os.getenv("DETA_PROJECT_KEY")
 
-_deta = deta.Deta(deta_key)
+_deta = deta.Deta(deta_key)  # type: ignore
 
 bkt_storage = _deta.Drive("storage")
 

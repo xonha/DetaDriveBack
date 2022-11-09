@@ -48,7 +48,7 @@ async def login(user: schemas.UserLogin):
 async def upload_file(
     request: Request, file: UploadFile, auth=Depends(auth_handler.auth_middleware)
 ):
-    payload = request.get("state")["payload"]
+    payload = request.get("state")["payload"]  # type: ignore
     return await deta.insert_file(file=file, user_key=payload["key"])
 
 
@@ -56,7 +56,7 @@ async def upload_file(
 async def delete_file(
     file_key: str, request: Request, auth=Depends(auth_handler.auth_middleware)
 ):
-    payload = request.get("state")["payload"]
+    payload = request.get("state")["payload"]  # type: ignore
     return await deta.delete_file(file_key=file_key, user_key=payload["key"])
 
 
@@ -67,7 +67,7 @@ async def update_file(
     request: Request,
     auth=Depends(auth_handler.auth_middleware),
 ):
-    payload = request.get("state")["payload"]
+    payload = request.get("state")["payload"]  # type: ignore
     return await deta.update_file(
         file_key=file_key, updates=dict(data), user_key=payload["key"]
     )
@@ -75,7 +75,7 @@ async def update_file(
 
 @app.get("/files", tags=["Storage"])
 async def list_all_files(request: Request, auth=Depends(auth_handler.auth_middleware)):
-    payload = request.get("state")["payload"]
+    payload = request.get("state")["payload"]  # type: ignore
     return await deta.list_all_files(user_key=payload["key"])
 
 
@@ -83,7 +83,7 @@ async def list_all_files(request: Request, auth=Depends(auth_handler.auth_middle
 async def download_file(
     file_key: str, request: Request, auth=Depends(auth_handler.auth_middleware)
 ):
-    payload = request.get("state")["payload"]
+    payload = request.get("state")["payload"]  # type: ignore
     return await deta.download_file(file_key=file_key, user_key=payload["key"])
 
 
