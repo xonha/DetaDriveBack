@@ -74,12 +74,18 @@ async def update_file(
 
 
 @app.get("/files", tags=["Storage"])
-async def list_all_files(request: Request, auth=Depends(auth_handler.auth_middleware)):
+async def get_files(request: Request, auth=Depends(auth_handler.auth_middleware)):
     payload = request.get("state")["payload"]  # type: ignore
-    return await deta.list_all_files(user_key=payload["key"])
+    return await deta.get_files(user_key=payload["key"])
 
 
-@app.get("/donwload/{file_key}", tags=["Storage"])
+@app.get("/trash", tags=["Storage"])
+async def get_trash(request: Request, auth=Depends(auth_handler.auth_middleware)):
+    payload = request.get("state")["payload"]  # type: ignore
+    return await deta.get_trash(user_key=payload["key"])
+
+
+@app.get("/download/{file_key}", tags=["Storage"])
 async def download_file(
     file_key: str, request: Request, auth=Depends(auth_handler.auth_middleware)
 ):

@@ -94,12 +94,18 @@ async def update_file(file_key: str, updates: dict, user_key: str):
     return {"message": f'File "{file_key}" updated successfully'}
 
 
-async def list_all_files(user_key: str) -> schemas.File:
+async def get_files(user_key: str) -> schemas.File:
     try:
-        res = tbl_files.fetch({"owner_key": user_key}).items
+        return tbl_files.fetch({"owner_key": user_key, "deleted": False}).items
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return res
+
+
+async def get_trash(user_key: str) -> schemas.File:
+    try:
+        return tbl_files.fetch({"owner_key": user_key, "deleted": True}).items
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 async def download_file(file_key: str, user_key: str):
