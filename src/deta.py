@@ -36,7 +36,7 @@ def user_exists(username: str) -> bool:
 
 
 def insert_user(user: schemas.UserLogin):
-    return tbl_users.insert(user.json())
+    return tbl_users.insert(user.dict())
 
 
 async def insert_file(file: UploadFile, user_key: str):
