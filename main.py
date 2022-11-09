@@ -17,10 +17,13 @@ async def docs_redirect():
 
 @app.post("/register", status_code=201, tags=["Auth"])
 async def register(user: schemas.UserLogin):
-    if user.username in deta.get_users_list():
-        raise HTTPException(status_code=400, detail="Username is taken")
+    if deta.user_exists(user.username):
+        raise HTTPException(status_code=400, detail="User already exists")
+
     hashed_password = auth_handler.get_password_hash(user.password)
-    deta.insert_user({"username": user.username, "password": hashed_password})
+    user_to_insert = schemas.User(username=user.username, password=hashed_password)
+    deta.insert_user(user_to_insert)
+
     return {"message": f"User {user.username} created successfully"}
 
 
@@ -30,12 +33,12 @@ async def login(user: schemas.UserLogin):
     exception_detail = "Incorrect username or password"
     if not user:
         raise HTTPException(status_code=404, detail=exception_detail)
-    password_verified = auth_handler.verify_password(user.password, db_user["password"])
+    password_verified = auth_handler.verify_password(user.password, db_user.password)
     if not password_verified:
         raise HTTPException(status_code=404, detail=exception_detail)
     return {
         "token": auth_handler.encode_token(
-            {"key": db_user["key"], "username": db_user["username"]}
+            {"key": db_user.key, "username": db_user.password}
         ),
         "type": "bearer",
     }
