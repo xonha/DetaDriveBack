@@ -10,7 +10,7 @@ from fastapi.exceptions import HTTPException
 
 deta_key = os.getenv("DETA_PROJECT_KEY")
 
-_deta = deta.Deta(deta_key)
+_deta = deta.Deta(deta_key)  # type: ignore
 
 bkt_storage = _deta.Drive("storage")
 
@@ -46,15 +46,16 @@ async def insert_file(file: UploadFile, user_key: str):
     if file_size > 52428800:
         raise HTTPException(status_code=400, detail="File size is too large")
 
-    data = {
-        "name": file.filename,
-        "size": file_size,
-        "owner_key": user_key,
-        "content_type": file.content_type,
-        "last_modified": str(datetime.datetime.now()),
-    }
+    data = schemas.File(
+        name=file.filename,
+        size=file_size,
+        owner_key=user_key,
+        content_type=file.content_type,
+        last_modified=str(datetime.datetime.now()),
+    )
+
     try:
-        res_base = tbl_files.insert(data=data)
+        res_base = tbl_files.insert(data=data.dict())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     try:
@@ -67,9 +68,12 @@ async def insert_file(file: UploadFile, user_key: str):
     return JSONResponse(res_base)
 
 
-async def delete_file(file_key: str, user_key: str) -> schemas.Record:
+async def delete_file(file_key: str, user_key: str):
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
+
+    if tbl_files.fetch({"key": file_key}).items[0]["deleted"] == False:
+        raise HTTPException(status_code=403, detail="File is not in trash")
     try:
         tbl_files.delete(file_key)
         res = bkt_storage.delete(file_key)
@@ -78,7 +82,7 @@ async def delete_file(file_key: str, user_key: str) -> schemas.Record:
     return {"message": f'File "{res}" deleted successfully'}
 
 
-async def update_file(file_key: str, updates: dict, user_key: str) -> schemas.Record:
+async def update_file(file_key: str, updates: dict, user_key: str):
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -93,15 +97,50 @@ async def update_file(file_key: str, updates: dict, user_key: str) -> schemas.Re
     return {"message": f'File "{file_key}" updated successfully'}
 
 
-async def list_all_files(user_key: str) -> schemas.File:
+async def get_files(user_key: str) -> schemas.File:
     try:
-        res = tbl_files.fetch({"owner_key": user_key}).items
+        return tbl_files.fetch({"owner_key": user_key, "deleted": False}).items
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return res
 
 
-async def download_file(file_key: str, user_key: str) -> schemas.Record:
+async def get_file(file_key: str, user_key: str):
+    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        return tbl_files.fetch({"key": file_key}).items[0]
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def get_trash(user_key: str) -> schemas.File:
+    try:
+        return tbl_files.fetch({"owner_key": user_key, "deleted": True}).items
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def send_to_trash(file_key: str, user_key: str):
+    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        tbl_files.update(updates={"deleted": True}, key=file_key)
+        return {"message": f"File ({file_key}) sent to trash successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def restore_file(file_key: str, user_key: str):
+    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        tbl_files.update(updates={"deleted": False}, key=file_key)
+        return {"message": f"File ({file_key}) restored successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def download_file(file_key: str, user_key: str):
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
     try:
