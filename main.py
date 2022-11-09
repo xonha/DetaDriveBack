@@ -17,16 +17,14 @@ async def docs_redirect():
 
 @app.post("/register", status_code=201, tags=["Auth"])
 async def register(user: schemas.UserLogin):
-    user_data = deta.get_user_by_username(user.username)
-
-    if user_data:
+    if deta.user_exists(user.username):
         raise HTTPException(status_code=400, detail="User already exists")
 
     hashed_password = auth_handler.get_password_hash(user.password)
     user_to_insert = schemas.User(username=user.username, password=hashed_password)
-
     deta.insert_user(user_to_insert)
-    return {"message": f"User {user.username} created successfully"}
+
+    return {"message": f'User "{user.username}" created successfully'}
 
 
 @app.post("/login", tags=["Auth"])

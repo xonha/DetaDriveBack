@@ -20,7 +20,19 @@ tbl_users_files = _deta.Base("users_files")
 
 
 def get_user_by_username(username: str) -> schemas.User:
-    return tbl_users.fetch({"username": username}).items[0]
+    try:
+        res = tbl_users.fetch({"username": username}).items[0]
+        return schemas.User(**res)
+    except IndexError:
+        raise HTTPException(status_code=404, detail="User not found")
+
+
+def user_exists(username: str) -> bool:
+    try:
+        tbl_users.fetch({"username": username}).items[0]
+    except IndexError:
+        return False
+    return True
 
 
 def insert_user(user: schemas.UserLogin):
