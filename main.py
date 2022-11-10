@@ -3,8 +3,8 @@ from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 
 
-from src.auth import AuthHandler
-from src import schemas, deta
+from source.auth import AuthHandler
+from source import schemas, deta
 
 
 app = FastAPI()
