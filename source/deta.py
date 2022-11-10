@@ -5,7 +5,7 @@ import datetime
 
 from source import schemas, utils
 from typing import List
-from fastapi import UploadFile
+from fastapi import UploadFile, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.exceptions import HTTPException
 
@@ -37,11 +37,19 @@ def user_exists(username: str) -> bool:
     return True
 
 
+def get_user_credentials_from_state(request: Request) -> schemas.User:
+    return request.get("state")["user_credentials"]  # type: ignore
+
+
 def insert_user(user: schemas.UserLogin):
-    return tbl_users.insert(user.dict())
+    try:
+        return tbl_users.insert(user.dict())
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
-async def insert_files(files: List[UploadFile], user_key: str):
+async def insert_files(files: List[UploadFile], request: Request):
+    user_credentials = get_user_credentials_from_state(request)
     res_list: list = []
 
     for file in files:
@@ -61,7 +69,7 @@ async def insert_files(files: List[UploadFile], user_key: str):
         data = schemas.File(
             name=file.filename,
             size=file_size,
-            owner_key=user_key,
+            owner_key=user_credentials.key,
             content_type=file.content_type,
             last_modified=str(datetime.datetime.now()),
         )

@@ -40,4 +40,4 @@ class AuthHandler:
         request: Request,
         auth: HTTPAuthorizationCredentials = Security(security),
     ):
-        request.state.payload = self.decode_token(auth.credentials)
+        request.state.user_credentials = self.decode_token(auth.credentials)
