@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 
@@ -46,10 +47,10 @@ async def login(user: schemas.UserLogin):
 
 @app.post("/file", tags=["Storage"])
 async def upload_file(
-    request: Request, file: UploadFile, auth=Depends(auth_handler.auth_middleware)
+    request: Request, files: List[UploadFile], auth=Depends(auth_handler.auth_middleware)
 ):
     payload = request.get("state")["payload"]  # type: ignore
-    return await deta.insert_file(file=file, user_key=payload["key"])
+    return await deta.insert_file(files=files, user_key=payload["key"])
 
 
 @app.patch("/file/{file_key}", tags=["Storage"])

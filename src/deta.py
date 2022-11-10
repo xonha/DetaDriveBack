@@ -3,6 +3,7 @@ import deta
 import datetime
 
 from src import schemas
+from typing import List
 from fastapi import UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.exceptions import HTTPException
@@ -39,33 +40,37 @@ def insert_user(user: schemas.UserLogin):
     return tbl_users.insert(user.dict())
 
 
-async def insert_file(file: UploadFile, user_key: str):
-    file_bytes = await file.read()
-    file_size = len(file_bytes)
+async def insert_file(files: List[UploadFile], user_key: str):
+    res_list: list = []
 
-    if file_size > 52428800:
-        raise HTTPException(status_code=400, detail="File size is too large")
+    for file in files:
+        file_bytes = await file.read()
+        file_size = len(file_bytes)
 
-    data = schemas.File(
-        name=file.filename,
-        size=file_size,
-        owner_key=user_key,
-        content_type=file.content_type,
-        last_modified=str(datetime.datetime.now()),
-    )
+        if file_size > 52428800:
+            raise HTTPException(status_code=400, detail="File size is too large")
 
-    try:
-        res_base = tbl_files.insert(data=data.dict())
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    try:
-        bkt_storage.put(
-            name=res_base["key"], data=file_bytes, content_type=file.content_type
+        data = schemas.File(
+            name=file.filename,
+            size=file_size,
+            owner_key=user_key,
+            content_type=file.content_type,
+            last_modified=str(datetime.datetime.now()),
         )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
 
-    return JSONResponse(res_base)
+        try:
+            res = tbl_files.insert(data=data.dict())
+            res_list.append(res)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        try:
+            bkt_storage.put(
+                name=res["key"], data=file_bytes, content_type=file.content_type
+            )
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=str(e))
+
+    return JSONResponse(res_list)
 
 
 async def delete_file(file_key: str, user_key: str):
