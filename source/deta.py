@@ -1,5 +1,6 @@
 import os
 import deta
+import utils
 import datetime
 
 
@@ -83,7 +84,6 @@ async def insert_files(files: List[UploadFile], user_key: str):
     return JSONResponse(res_list)
 
 
-# combination of user_key and file_key must be unique
 async def share_file(file_key: str, user_key: str, share_with: str):
 
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
@@ -117,7 +117,7 @@ async def update_file(file_key: str, updates: dict, user_key: str):
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    clean_updates = _remove_none_from_dict(updates)
+    clean_updates = utils.remove_none_values_from_dict(updates)
 
     update_dict = {"last_modified": str(datetime.datetime.now()), **clean_updates}
 
@@ -189,5 +189,4 @@ async def download_file(file_key: str, user_key: str):
     )
 
 
-def _remove_none_from_dict(d: dict) -> dict:
-    return {k: v for k, v in d.items() if v is not None}
+
