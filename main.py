@@ -46,11 +46,13 @@ async def login(user: schemas.UserLogin):
 
 
 @app.post("/file", tags=["Storage"])
-async def upload_file(
-    request: Request, files: List[UploadFile], auth=Depends(auth_handler.auth_middleware)
+async def upload_files(
+    request: Request,
+    files: List[UploadFile],
+    auth=Depends(auth_handler.auth_middleware),
 ):
     payload = request.get("state")["payload"]  # type: ignore
-    return await deta.insert_file(files=files, user_key=payload["key"])
+    return await deta.insert_files(files=files, user_key=payload["key"])
 
 
 @app.patch("/file/{file_key}", tags=["Storage"])

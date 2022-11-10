@@ -40,7 +40,7 @@ def insert_user(user: schemas.UserLogin):
     return tbl_users.insert(user.dict())
 
 
-async def insert_file(files: List[UploadFile], user_key: str):
+async def insert_files(files: List[UploadFile], user_key: str):
     res_list: list = []
 
     for file in files:
@@ -48,7 +48,14 @@ async def insert_file(files: List[UploadFile], user_key: str):
         file_size = len(file_bytes)
 
         if file_size > 52428800:
-            raise HTTPException(status_code=400, detail="File size is too large")
+            res_list.append(
+                {
+                    "name": file.filename,
+                    "size": file_size,
+                    "error": "File size exceeds 50MB",
+                }
+            )
+            continue
 
         data = schemas.File(
             name=file.filename,
@@ -62,13 +69,15 @@ async def insert_file(files: List[UploadFile], user_key: str):
             res = tbl_files.insert(data=data.dict())
             res_list.append(res)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            res_list.append({"error": str(e)})
+            continue
         try:
             bkt_storage.put(
                 name=res["key"], data=file_bytes, content_type=file.content_type
             )
         except Exception as e:
-            raise HTTPException(status_code=502, detail=str(e))
+            res_list.append({"error": str(e)})
+            continue
 
     return JSONResponse(res_list)
 
