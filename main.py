@@ -55,6 +55,19 @@ async def upload_files(
     return await deta.insert_files(files=files, user_key=payload["key"])
 
 
+@app.post("/file/{file_key}/share ", tags=["Storage"])
+async def share_file(
+    request: Request,
+    file_key: str,
+    share_with: str,
+    auth=Depends(auth_handler.auth_middleware),
+):
+    payload = request.get("state")["payload"] # type: ignore
+    return await deta.share_file(
+        file_key=file_key, share_with=share_with, user_key=payload["key"]
+    )
+
+
 @app.patch("/file/{file_key}", tags=["Storage"])
 async def update_file(
     file_key: str,

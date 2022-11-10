@@ -82,6 +82,24 @@ async def insert_files(files: List[UploadFile], user_key: str):
     return JSONResponse(res_list)
 
 
+# combination of user_key and file_key must be unique
+async def share_file(file_key: str, user_key: str, share_with: str):
+
+
+    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if not user_exists(share_with):
+        raise HTTPException(status_code=404, detail="User not found")
+
+    
+    try:
+        tbl_users_files.insert({"user_key": share_with, "file_key": file_key})
+        return {"message": f"File ({file_key}) shared successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 async def delete_file(file_key: str, user_key: str):
     if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
