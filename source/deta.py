@@ -1,10 +1,9 @@
 import os
 import deta
-import utils
 import datetime
 
 
-from source import schemas
+from source import schemas, utils
 from typing import List
 from fastapi import UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -187,6 +186,3 @@ async def download_file(file_key: str, user_key: str):
         media_type=file["content_type"],
         headers={"Content-Disposition": f"attachment; filename={file['name']}"},
     )
-
-
-
