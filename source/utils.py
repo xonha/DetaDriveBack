@@ -1,4 +1,4 @@
-from fastapi import Request
+from fastapi import Request, HTTPException
 
 from source import db, schemas
 
@@ -11,18 +11,34 @@ def get_user_by_username(username: str) -> schemas.User:
     try:
         res = db.tbl_users.fetch({"username": username}).items[0]
         return schemas.User(**res)
-    except Exception as e:
-        raise e
+    except IndexError:
+        raise HTTPException(status_code=404, detail="User not found")
 
 
-def user_exists(username: str) -> bool:
+def username_exists(username: str) -> bool:
     try:
         db.tbl_users.fetch({"username": username}).items[0]
     except IndexError:
         return False
     return True
 
+def user_key_exists(key: str) -> bool:
+    try:
+        db.tbl_users.fetch({"key": key}).items[0]
+    except IndexError:
+        return False
+    return True
 
 def get_user_credentials_from_state(req: Request) -> schemas.User:
     user_credentials: dict = req.get("state")["user_credentials"]  # type: ignore
     return schemas.User(**user_credentials)
+
+
+def user_owns_file(user_key: str, file_key: str) -> bool:
+    try:
+        res = db.tbl_files.fetch({"key": file_key}).items[0]
+        if res["owner_key"] == user_key:
+            return True
+        return False
+    except IndexError:
+        raise HTTPException(status_code=404, detail="File not found")

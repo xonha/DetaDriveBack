@@ -9,13 +9,13 @@ class UserLogin(BaseModel):
 
 
 class User(UserLogin):
-    key: Optional[str] = None
+    key: str
 
 
-class UserFile(BaseModel):
-    key: Optional[str] = None
+class UserFileRelation(BaseModel):
     user_key: str
     file_key: str
+    owner_key: str
 
 
 class File(BaseModel):

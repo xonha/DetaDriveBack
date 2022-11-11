@@ -11,7 +11,7 @@ _auth = auth.AuthHandler()
 
 
 async def register(user: schemas.UserLogin):
-    if utils.user_exists(user.username):
+    if utils.username_exists(user.username):
         raise HTTPException(status_code=400, detail="User already exists")
 
     hashed_password = _auth.get_password_hash(user.password)
@@ -84,15 +84,24 @@ async def upload_files(req: Request, files: List[UploadFile]):
 async def share_file(req: Request, file_key: str, share_with: str):
     user = utils.get_user_credentials_from_state(req)
 
-    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-    if not utils.user_exists(share_with):
+    relation = schemas.UserFileRelation(
+        owner_key=user.key,
+        user_key=share_with,
+        file_key=file_key,
+    )
+    if not utils.user_key_exists(share_with):
         raise HTTPException(status_code=404, detail="User not found")
 
+    relation_exists = db.tbl_users_files.fetch(relation.dict())
+    if relation_exists.items:
+        return {"message": "Suceessfully shared file"}
+
+    if not utils.user_owns_file(user.key, file_key):
+        raise HTTPException(status_code=403, detail="File does not belong to user")
+
     try:
-        db.tbl_users_files.insert({"user_key": share_with, "file_key": file_key})
-        return {"message": f"File ({file_key}) shared successfully"}
+        db.tbl_users_files.insert(relation.dict())
+        return {"message": "Suceessfully shared file"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -100,8 +109,8 @@ async def share_file(req: Request, file_key: str, share_with: str):
 async def update_file(req: Request, file_key: str, updates: dict):
     user = utils.get_user_credentials_from_state(req)
 
-    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    if not utils.user_owns_file(user.key, file_key):
+        raise HTTPException(status_code=403, detail="File does not belong to user")
 
     clean_updates = utils.remove_none_values_from_dict(updates)
 
@@ -117,8 +126,8 @@ async def update_file(req: Request, file_key: str, updates: dict):
 async def send_to_trash(req: Request, file_key: str):
     user = utils.get_user_credentials_from_state(req)
 
-    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    if not utils.user_owns_file(user.key, file_key):
+        raise HTTPException(status_code=403, detail="File does not belong to user")
     try:
         db.tbl_files.update(updates={"deleted": True}, key=file_key)
         return {"message": f"File ({file_key}) sent to trash successfully"}
@@ -129,8 +138,8 @@ async def send_to_trash(req: Request, file_key: str):
 async def get_file(req: Request, file_key: str):
     user = utils.get_user_credentials_from_state(req)
 
-    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    if not utils.user_owns_file(user.key, file_key):
+        raise HTTPException(status_code=403, detail="File does not belong to user")
     try:
         return db.tbl_files.fetch({"key": file_key}).items[0]
     except Exception as e:
@@ -140,8 +149,8 @@ async def get_file(req: Request, file_key: str):
 async def download_file(req: Request, file_key: str):
     user = utils.get_user_credentials_from_state(req)
 
-    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    if not utils.user_owns_file(user.key, file_key):
+        raise HTTPException(status_code=403, detail="File does not belong to user")
     try:
         file = db.tbl_files.fetch({"key": file_key}).items[0]
     except Exception as e:
@@ -178,8 +187,8 @@ async def get_trash(req: Request) -> schemas.File:
 async def restore_file(req: Request, file_key: str):
     user = utils.get_user_credentials_from_state(req)
 
-    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    if not utils.user_owns_file(user.key, file_key):
+        raise HTTPException(status_code=403, detail="File does not belong to user")
     try:
         db.tbl_files.update(updates={"deleted": False}, key=file_key)
         return {"message": f"File ({file_key}) restored successfully"}
@@ -190,8 +199,8 @@ async def restore_file(req: Request, file_key: str):
 async def delete_file(req: Request, file_key: str):
     user = utils.get_user_credentials_from_state(req)
 
-    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    if not utils.user_owns_file(user.key, file_key):
+        raise HTTPException(status_code=403, detail="File does not belong to user")
 
     if db.tbl_files.fetch({"key": file_key}).items[0]["deleted"] == False:
         raise HTTPException(status_code=403, detail="File is not in trash")
