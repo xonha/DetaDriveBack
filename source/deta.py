@@ -1,55 +1,45 @@
-import os
-import deta
 import datetime
-
-
-from source import schemas, utils
 from typing import List
-from fastapi import UploadFile, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+
+from fastapi import Request, UploadFile
 from fastapi.exceptions import HTTPException
+from fastapi.responses import JSONResponse, StreamingResponse
+
+from source import auth, db, schemas, utils
+
+_auth = auth.AuthHandler()
 
 
-deta_key = os.getenv("DETA_PROJECT_KEY")
+async def register(user: schemas.UserLogin):
+    if utils.user_exists(user.username):
+        raise HTTPException(status_code=400, detail="User already exists")
 
-_deta = deta.Deta(deta_key)  # type: ignore
+    hashed_password = _auth.get_password_hash(user.password)
+    user_to_insert = schemas.UserLogin(username=user.username, password=hashed_password)
 
-bkt_storage = _deta.Drive("storage")
-
-tbl_users = _deta.Base("users")
-tbl_files = _deta.Base("files")
-tbl_users_files = _deta.Base("users_files")
-
-
-def get_user_by_username(username: str) -> schemas.User:
     try:
-        res = tbl_users.fetch({"username": username}).items[0]
-        return schemas.User(**res)
-    except IndexError:
-        raise HTTPException(status_code=404, detail="User not found")
-
-
-def user_exists(username: str) -> bool:
-    try:
-        tbl_users.fetch({"username": username}).items[0]
-    except IndexError:
-        return False
-    return True
-
-
-def get_user_credentials_from_state(request: Request) -> schemas.User:
-    return request.get("state")["user_credentials"]  # type: ignore
-
-
-def insert_user(user: schemas.UserLogin):
-    try:
-        return tbl_users.insert(user.dict())
+        db.tbl_users.insert(user_to_insert.dict())
+        return {"message": "User created successfully"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-async def insert_files(files: List[UploadFile], request: Request):
-    user_credentials = get_user_credentials_from_state(request)
+async def login(user: schemas.UserLogin):
+    exception_detail = "Incorrect username or password"
+
+    db_user = utils.get_user_by_username(user.username)
+    if not db_user:
+        raise HTTPException(status_code=404, detail=exception_detail)
+
+    password_verified = _auth.verify_password(user.password, db_user.password)
+    if not password_verified:
+        raise HTTPException(status_code=404, detail=exception_detail)
+
+    return {"type": "Bearer", "token": _auth.encode_token(db_user.dict())}
+
+
+async def upload_files(req: Request, files: List[UploadFile]):
+    user = utils.get_user_credentials_from_state(req)
     res_list: list = []
 
     for file in files:
@@ -69,19 +59,19 @@ async def insert_files(files: List[UploadFile], request: Request):
         data = schemas.File(
             name=file.filename,
             size=file_size,
-            owner_key=user_credentials.key,
+            owner_key=user.key,
             content_type=file.content_type,
             last_modified=str(datetime.datetime.now()),
         )
 
         try:
-            res = tbl_files.insert(data=data.dict())
+            res = db.tbl_files.insert(data=data.dict())
             res_list.append(res)
         except Exception as e:
             res_list.append({"error": str(e)})
             continue
         try:
-            bkt_storage.put(
+            db.storage.put(
                 name=res["key"], data=file_bytes, content_type=file.content_type
             )
         except Exception as e:
@@ -91,37 +81,26 @@ async def insert_files(files: List[UploadFile], request: Request):
     return JSONResponse(res_list)
 
 
-async def share_file(file_key: str, user_key: str, share_with: str):
+async def share_file(req: Request, file_key: str, share_with: str):
+    user = utils.get_user_credentials_from_state(req)
 
-    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    if not user_exists(share_with):
+    if not utils.user_exists(share_with):
         raise HTTPException(status_code=404, detail="User not found")
 
     try:
-        tbl_users_files.insert({"user_key": share_with, "file_key": file_key})
+        db.tbl_users_files.insert({"user_key": share_with, "file_key": file_key})
         return {"message": f"File ({file_key}) shared successfully"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-async def delete_file(file_key: str, user_key: str):
-    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
+async def update_file(req: Request, file_key: str, updates: dict):
+    user = utils.get_user_credentials_from_state(req)
 
-    if tbl_files.fetch({"key": file_key}).items[0]["deleted"] == False:
-        raise HTTPException(status_code=403, detail="File is not in trash")
-    try:
-        tbl_files.delete(file_key)
-        res = bkt_storage.delete(file_key)
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    return {"message": f'File "{res}" deleted successfully'}
-
-
-async def update_file(file_key: str, updates: dict, user_key: str):
-    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
 
     clean_updates = utils.remove_none_values_from_dict(updates)
@@ -129,64 +108,46 @@ async def update_file(file_key: str, updates: dict, user_key: str):
     update_dict = {"last_modified": str(datetime.datetime.now()), **clean_updates}
 
     try:
-        tbl_files.update(updates=update_dict, key=file_key)
+        db.tbl_files.update(updates=update_dict, key=file_key)
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"message": f'File "{file_key}" updated successfully'}
 
 
-async def get_files(user_key: str) -> schemas.File:
-    try:
-        return tbl_files.fetch({"owner_key": user_key, "deleted": False}).items
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
+async def send_to_trash(req: Request, file_key: str):
+    user = utils.get_user_credentials_from_state(req)
 
-
-async def get_file(file_key: str, user_key: str):
-    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
     try:
-        return tbl_files.fetch({"key": file_key}).items[0]
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-async def get_trash(user_key: str) -> schemas.File:
-    try:
-        return tbl_files.fetch({"owner_key": user_key, "deleted": True}).items
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-async def send_to_trash(file_key: str, user_key: str):
-    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    try:
-        tbl_files.update(updates={"deleted": True}, key=file_key)
+        db.tbl_files.update(updates={"deleted": True}, key=file_key)
         return {"message": f"File ({file_key}) sent to trash successfully"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-async def restore_file(file_key: str, user_key: str):
-    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+async def get_file(req: Request, file_key: str):
+    user = utils.get_user_credentials_from_state(req)
+
+    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
     try:
-        tbl_files.update(updates={"deleted": False}, key=file_key)
-        return {"message": f"File ({file_key}) restored successfully"}
+        return db.tbl_files.fetch({"key": file_key}).items[0]
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-async def download_file(file_key: str, user_key: str):
-    if user_key != tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+async def download_file(req: Request, file_key: str):
+    user = utils.get_user_credentials_from_state(req)
+
+    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
         raise HTTPException(status_code=403, detail="Forbidden")
     try:
-        file = tbl_files.fetch({"key": file_key}).items[0]
+        file = db.tbl_files.fetch({"key": file_key}).items[0]
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
     try:
-        res = bkt_storage.get(file_key)
+        res = db.storage.get(file_key)
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
     return StreamingResponse(
@@ -194,3 +155,49 @@ async def download_file(file_key: str, user_key: str):
         media_type=file["content_type"],
         headers={"Content-Disposition": f"attachment; filename={file['name']}"},
     )
+
+
+async def get_files(req: Request) -> schemas.File:
+    user = utils.get_user_credentials_from_state(req)
+
+    try:
+        return db.tbl_files.fetch({"owner_key": user.key, "deleted": False}).items
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def get_trash(req: Request) -> schemas.File:
+    user = utils.get_user_credentials_from_state(req)
+
+    try:
+        return db.tbl_files.fetch({"owner_key": user.key, "deleted": True}).items
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def restore_file(req: Request, file_key: str):
+    user = utils.get_user_credentials_from_state(req)
+
+    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        db.tbl_files.update(updates={"deleted": False}, key=file_key)
+        return {"message": f"File ({file_key}) restored successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def delete_file(req: Request, file_key: str):
+    user = utils.get_user_credentials_from_state(req)
+
+    if user.key != db.tbl_files.fetch({"key": file_key}).items[0]["owner_key"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if db.tbl_files.fetch({"key": file_key}).items[0]["deleted"] == False:
+        raise HTTPException(status_code=403, detail="File is not in trash")
+    try:
+        db.tbl_files.delete(file_key)
+        res = db.storage.delete(file_key)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"message": f'File "{res}" deleted successfully'}
