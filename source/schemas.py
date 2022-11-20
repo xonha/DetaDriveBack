@@ -27,10 +27,11 @@ class File(BaseModel):
     deleted: bool = False
 
 
-class FileUpdate(BaseModel):
-    name: Optional[str]
-    owner_key: Optional[str]
+class BodyRename(BaseModel):
+    name: str
 
+class BodyChangeOwner(BaseModel):
+    owner_key: str
 
 class Record(BaseModel):
     name: str

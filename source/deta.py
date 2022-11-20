@@ -38,6 +38,20 @@ async def login(user: schemas.UserLogin):
     return {"type": "Bearer", "token": _auth.encode_token(db_user.dict())}
 
 
+async def get_users():
+    try:
+        users = db.tbl_users.fetch().items
+        users_without_password = map(
+            lambda user: {
+                key: value for key, value in user.items() if key != "password"
+            },
+            users,
+        )
+        return list(users_without_password)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 async def upload_files(req: Request, files: List[UploadFile]):
     user = utils.get_user_credentials_from_state(req)
     res_list: list = []
@@ -106,21 +120,42 @@ async def share_file(req: Request, file_key: str, share_with: str):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-async def update_file(req: Request, file_key: str, updates: dict):
+async def rename_file(req: Request, file_key: str, new_file_name: str):
     user = utils.get_user_credentials_from_state(req)
 
     if not utils.user_owns_file(user.key, file_key):
         raise HTTPException(status_code=403, detail="File does not belong to user")
 
-    clean_updates = utils.remove_none_values_from_dict(updates)
-
-    update_dict = {"last_modified": str(datetime.datetime.now()), **clean_updates}
+    update_dict = {"name": new_file_name, "last_modified": str(datetime.datetime.now())}
 
     try:
         db.tbl_files.update(updates=update_dict, key=file_key)
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return {"message": f'File "{file_key}" updated successfully'}
+    return {"message": "File renamed successfully"}
+
+
+async def change_owner(req: Request, file_key: str, new_owner: str):
+    user = utils.get_user_credentials_from_state(req)
+
+    if not utils.user_owns_file(user.key, file_key):
+        raise HTTPException(status_code=403, detail="File does not belong to user")
+    if not utils.user_key_exists(new_owner):
+        raise HTTPException(status_code=404, detail="New owner not found")
+
+    file = db.tbl_users_files.fetch(
+        {"file_key": file_key, "owner_key": user.key, "user_key": new_owner}
+    ).items[0]
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        db.tbl_users_files.update(
+            key=file["key"], updates={"owner_key": new_owner, "user_key": user.key}
+        )
+        db.tbl_files.update(updates={"owner_key": new_owner}, key=file_key)
+        return {"message": f"File ({file_key}) owner changed successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 async def send_to_trash(req: Request, file_key: str):
@@ -131,6 +166,18 @@ async def send_to_trash(req: Request, file_key: str):
     try:
         db.tbl_files.update(updates={"deleted": True}, key=file_key)
         return {"message": f"File ({file_key}) sent to trash successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def stop_seeing(req: Request, file_key: str):
+    user = utils.get_user_credentials_from_state(req)
+
+    if not utils.user_has_access_to_file(user.key, file_key):
+        raise HTTPException(status_code=403, detail="User does not have access to file")
+    try:
+        db.tbl_users_files.delete(user_key=user.key, file_key=file_key)
+        return {"message": f"User ({user.key}) stopped seeing file ({file_key})"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -149,28 +196,40 @@ async def get_file(req: Request, file_key: str):
 async def download_file(req: Request, file_key: str):
     user = utils.get_user_credentials_from_state(req)
 
-    if not utils.user_owns_file(user.key, file_key):
-        raise HTTPException(status_code=403, detail="File does not belong to user")
+    if not utils.user_owns_file(
+        user.key, file_key
+    ) or not utils.user_has_access_to_file(user.key, file_key):
+        raise HTTPException(status_code=403, detail="User does not have access to file")
     try:
         file = db.tbl_files.fetch({"key": file_key}).items[0]
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
     try:
         res = db.storage.get(file_key)
+        return StreamingResponse(
+            content=res.iter_chunks(1024),
+            media_type=file["content_type"],
+            headers={"Content-Disposition": f"attachment; filename={file['name']}"},
+        )
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return StreamingResponse(
-        content=res.iter_chunks(1024),
-        media_type=file["content_type"],
-        headers={"Content-Disposition": f"attachment; filename={file['name']}"},
-    )
 
 
-async def get_files(req: Request) -> schemas.File:
+async def get_owned_files(req: Request) -> schemas.File:
     user = utils.get_user_credentials_from_state(req)
-
     try:
         return db.tbl_files.fetch({"owner_key": user.key, "deleted": False}).items
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+async def get_shared_files(req: Request) -> list:
+    user = utils.get_user_credentials_from_state(req)
+    try:
+        items_shared = db.tbl_users_files.fetch({"user_key": user.key}).items
+        file_keys = [item["file_key"] for item in items_shared]
+        items = map(lambda key: db.tbl_files.fetch({"key": key}).items[0], file_keys)
+        return list(items)
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 

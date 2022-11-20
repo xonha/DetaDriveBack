@@ -24,6 +24,10 @@ async def register(user: schemas.UserLogin):
 async def login(user: schemas.UserLogin):
     return await deta.login(user)
 
+@app.get("/users", tags=["Auth"])
+async def get_users():
+    return await deta.get_users()
+
 
 @app.post("/file", tags=["Storage"])
 async def upload_files(
@@ -44,21 +48,36 @@ async def share_file(
     return await deta.share_file(req, file_key, share_with)
 
 
-@app.patch("/file/{file_key}", tags=["Storage"])
-async def update_file(
+@app.patch("/file/{file_key}/rename", tags=["Storage"])
+async def rename_file(
     req: Request,
     file_key: str,
-    data: schemas.FileUpdate,
+    body: schemas.BodyRename,
     auth=Depends(auth.auth_middleware),
 ):
-    return await deta.update_file(req, file_key, data.dict())
+    return await deta.rename_file(req, file_key, body.name)
 
 
-@app.delete("/file/{file_key}", tags=["Storage"])
+@app.patch("/file/{file_key}/change_owner", tags=["Storage"])
+async def change_owner(
+    req: Request,
+    file_key: str,
+    body: schemas.BodyChangeOwner,
+    auth=Depends(auth.auth_middleware),
+):
+    return await deta.change_owner(req, file_key, body.owner_key)
+
+
+@app.patch("/file/{file_key}/send_to_trash", tags=["Storage"])
 async def send_to_trash(
     req: Request, file_key: str, auth=Depends(auth.auth_middleware)
 ):
     return await deta.send_to_trash(req, file_key)
+
+
+@app.delete("/file/{file_key}/stop_seeing", tags=["Storage"])
+async def stop_seeing(req: Request, file_key: str, auth=Depends(auth.auth_middleware)):
+    return await deta.stop_seeing(req, file_key)
 
 
 @app.get("/file/{file_key}", tags=["Storage"])
@@ -73,9 +92,14 @@ async def download_file(
     return await deta.download_file(req, file_key)
 
 
-@app.get("/files", tags=["Storage"])
-async def get_files(req: Request, auth=Depends(auth.auth_middleware)):
-    return await deta.get_files(req)
+@app.get("/files/owned", tags=["Storage"])
+async def get_owned_files(req: Request, auth=Depends(auth.auth_middleware)):
+    return await deta.get_owned_files(req)
+
+
+@app.get("/files/shared", tags=["Storage"])
+async def get_shared_files(req: Request, auth=Depends(auth.auth_middleware)):
+    return await deta.get_shared_files(req)
 
 
 @app.get("/trash", tags=["Trash"])
