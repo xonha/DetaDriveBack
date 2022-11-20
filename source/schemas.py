@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from typing import Optional
+
+from pydantic import BaseModel
 
 
 class UserLogin(BaseModel):
@@ -8,13 +9,13 @@ class UserLogin(BaseModel):
 
 
 class User(UserLogin):
-    key: Optional[str] = None
+    key: str
 
 
-class UserFile(BaseModel):
-    key: Optional[str] = None
+class UserFileRelation(BaseModel):
     user_key: str
     file_key: str
+    owner_key: str
 
 
 class File(BaseModel):
@@ -26,10 +27,11 @@ class File(BaseModel):
     deleted: bool = False
 
 
-class FileUpdate(BaseModel):
-    name: Optional[str]
-    owner_key: Optional[str]
+class BodyRename(BaseModel):
+    name: str
 
+class BodyChangeOwner(BaseModel):
+    owner_key: str
 
 class Record(BaseModel):
     name: str

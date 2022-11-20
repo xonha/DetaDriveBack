@@ -1,10 +1,10 @@
 import os
-import jwt
+from datetime import datetime, timedelta
 
-from fastapi import HTTPException, Security, Request
+import jwt
+from fastapi import HTTPException, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
 
 
 class AuthHandler:
@@ -40,4 +40,4 @@ class AuthHandler:
         request: Request,
         auth: HTTPAuthorizationCredentials = Security(security),
     ):
-        request.state.payload = self.decode_token(auth.credentials)
+        request.state.user_credentials = self.decode_token(auth.credentials)
