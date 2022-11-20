@@ -24,6 +24,7 @@ async def register(user: schemas.UserLogin):
 async def login(user: schemas.UserLogin):
     return await deta.login(user)
 
+
 @app.get("/users", tags=["Auth"])
 async def get_users():
     return await deta.get_users()
