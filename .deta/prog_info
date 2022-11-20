@@ -1,0 +1,1 @@
+{"id":"61303cf5-fb2e-4e94-89af-8d6ded59602f","space":36385,"runtime":"python3.9","name":"detadrive","path":"arrorn","project":"e0b2v1gk","account":"144798365827","region":"sa-east-1","deps":["fastapi","bcrypt","PyJWT","passlib","deta","python-multipart"],"envs":null,"public":false,"log_level":"debug","cron":""}
