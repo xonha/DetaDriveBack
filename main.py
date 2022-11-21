@@ -1,6 +1,7 @@
 from typing import List
 
 from fastapi import Depends, FastAPI, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from source import deta, schemas
@@ -8,6 +9,14 @@ from source.auth import AuthHandler
 
 app = FastAPI()
 auth = AuthHandler()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)
 
 
 @app.get("/", include_in_schema=False)
