@@ -102,12 +102,12 @@ async def download_file(
     return await deta.download_file(req, file_key)
 
 
-@app.get("/files/owned", tags=["Storage"])
+@app.get("/file/owned", tags=["Storage"])
 async def get_owned_files(req: Request, auth=Depends(auth.auth_middleware)):
     return await deta.get_owned_files(req)
 
 
-@app.get("/files/shared", tags=["Storage"])
+@app.get("/file/shared", tags=["Storage"])
 async def get_shared_files(req: Request, auth=Depends(auth.auth_middleware)):
     return await deta.get_shared_files(req)
 
