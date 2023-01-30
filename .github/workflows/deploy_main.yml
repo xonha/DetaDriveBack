@@ -1,4 +1,4 @@
-name: Deploy to Deta
+name: Deploy to Deta Main
 on: 
   push:
     branches: [main]
