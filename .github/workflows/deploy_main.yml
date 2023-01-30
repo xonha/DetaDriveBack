@@ -14,6 +14,6 @@ jobs:
         uses: BogDAAAMN/deta-deploy-action@v1.0.1
         with:
           deta-access-token: ${{ secrets.DETA_TOKEN }} #Deta access token https://docs.deta.sh/docs/cli/auth
-          deta-name: 'main' #Deta Micro name https://docs.deta.sh/docs/cli/commands/#deta-clone
-          deta-project: 'SupaDrive' #Optional: Deta project name https://docs.deta.sh/docs/cli/commands/#deta-clone
+          deta-name: ${{ vars.DETA_MICRO_NAME_MAIN }} #Deta Micro name https://docs.deta.sh/docs/cli/commands/#deta-clone
+          deta-project: ${{ vars.DETA_PROJECT }} #Optional: Deta project name https://docs.deta.sh/docs/cli/commands/#deta-clone
           deta-project-dir: '.' #Optional: directory to be deployed on Deta. Default is the root "." 
