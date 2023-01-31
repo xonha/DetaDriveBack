@@ -41,3 +41,4 @@ class AuthHandler:
         auth: HTTPAuthorizationCredentials = Security(security),
     ):
         request.state.user_credentials = self.decode_token(auth.credentials)
+        return self.decode_token(auth.credentials)
