@@ -37,16 +37,6 @@ async def stop_seeing(req: Request, file_key: str):
     return await deta.stop_seeing(req, file_key)
 
 
-@router.get("/{file_key}")
-async def get_file(req: Request, file_key: str):
-    return await deta.get_file(req, file_key)
-
-
-@router.get("/{file_key}/download")
-async def download_file(req: Request, file_key: str):
-    return await deta.download_file(req, file_key)
-
-
 @router.get("/owned")
 async def get_owned_files(req: Request):
     return await deta.get_owned_files(req)
@@ -55,3 +45,13 @@ async def get_owned_files(req: Request):
 @router.get("/shared")
 async def get_shared_files(req: Request):
     return await deta.get_shared_files(req)
+
+
+@router.get("/{file_key}")
+async def get_file(req: Request, file_key: str):
+    return await deta.get_file(req, file_key)
+
+
+@router.get("/{file_key}/download")
+async def download_file(req: Request, file_key: str):
+    return await deta.download_file(req, file_key)
