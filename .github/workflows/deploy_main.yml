@@ -1,4 +1,4 @@
-name: Deploy to Deta Main
+name: Deploy Main
 on: 
   push:
     branches: [main]
@@ -7,10 +7,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2 #Be sure you check-out the repo first. Deta CLI needs access to the files
-      - uses: BogDAAAMN/deta-deploy-action@v1.0.1
+      - name: Checkout
+        uses: actions/checkout@v2 #Be sure you check-out the repo first. Deta CLI needs access to the files
+
+      - name: Deploy
+        uses: BogDAAAMN/deta-deploy-action@v1.0.1
         with:
           deta-access-token: ${{ secrets.DETA_TOKEN }} #Deta access token https://docs.deta.sh/docs/cli/auth
-          deta-name: 'main' #Deta Micro name https://docs.deta.sh/docs/cli/commands/#deta-clone
-          deta-project: 'SupaDrive' #Optional: Deta project name https://docs.deta.sh/docs/cli/commands/#deta-clone
+          deta-name: ${{ vars.DETA_MICRO_NAME_MAIN }} #Deta Micro name https://docs.deta.sh/docs/cli/commands/#deta-clone
+          deta-project: ${{ vars.DETA_PROJECT }} #Optional: Deta project name https://docs.deta.sh/docs/cli/commands/#deta-clone
           deta-project-dir: '.' #Optional: directory to be deployed on Deta. Default is the root "." 
