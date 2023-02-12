@@ -2,3 +2,4 @@ black
 uvicorn
 mypy
 isort
+httpx
