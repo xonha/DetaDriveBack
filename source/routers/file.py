@@ -7,7 +7,7 @@ from source import deta, schemas
 router = APIRouter()
 
 
-@router.post("")
+@router.post("", status_code=201)
 async def upload_files(req: Request, files: List[UploadFile]):
     return await deta.upload_files(req, files)
 
