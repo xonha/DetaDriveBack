@@ -1,9 +1,17 @@
-def test_upload_file(client, auth_header) -> None:
+import os
+
+from fastapi.testclient import TestClient
+
+
+def test_upload_file(client: TestClient, auth_header) -> None:
+    file_path = os.path.join(os.getcwd(), "source", "tests", "misc", "arch.jpg")
+    files = [("files", open(file_path, "rb"))]
     res = client.post(
-        "/file/upload",
+        "/file",
         headers=auth_header,
-        files={"file": ("test.txt", b"some text data")},
+        files=files,
     )
+
     assert res.status_code == 201
 
 

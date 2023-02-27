@@ -92,7 +92,7 @@ async def upload_files(req: Request, files: List[UploadFile]):
             res_list.append({"error": str(e)})
             continue
 
-    return JSONResponse(res_list)
+    return JSONResponse(res_list, status_code=201)
 
 
 async def share_file(req: Request, file_key: str, share_with: str):
