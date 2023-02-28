@@ -10,7 +10,7 @@ def client() -> TestClient:
 
 
 @fixture
-def auth_header(client):
+def auth_header(client) -> dict:
     res = client.post("/user/login", json={"username": "string", "password": "string"})
     access_token = res.json()["token"]
     return {"Authorization": f"Bearer {access_token}"}
