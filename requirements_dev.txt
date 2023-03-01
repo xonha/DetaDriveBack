@@ -3,3 +3,4 @@ uvicorn
 mypy
 isort
 httpx
+pytest-dependency
