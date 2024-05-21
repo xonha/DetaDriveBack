@@ -6,5 +6,4 @@ micros:
     engine: python3.9
     primary: true
     run: uvicorn main:app
-    routes:
-      - cors: true
+    public: true
