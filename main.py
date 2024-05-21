@@ -36,6 +36,7 @@ app.include_router(
     dependencies=[Depends(auth.auth_middleware)],
 )
 
+
 # create a Hello World endpoint
 @app.get("/hello")
 async def hello():
