@@ -143,11 +143,25 @@ async def change_owner(req: Request, file_key: str, new_owner: str):
     if not utils.user_key_exists(new_owner):
         raise HTTPException(status_code=404, detail="New owner not found")
 
-    file = db.tbl_users_files.fetch(
+    files = db.tbl_users_files.fetch(
         {"file_key": file_key, "owner_key": user.key, "user_key": new_owner}
-    ).items[0]
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+    )
+
+    if len(files.items) == 0:
+        try:
+            db.tbl_users_files.insert(
+                {
+                    "owner_key": new_owner,
+                    "user_key": user.key,
+                    "file_key": file_key,
+                }
+            )
+            db.tbl_files.update(updates={"owner_key": new_owner}, key=file_key)
+            return {"message": "File owner changed successfully"}
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    file = files.items[0]
     try:
         db.tbl_users_files.update(
             key=file["key"], updates={"owner_key": new_owner, "user_key": user.key}
@@ -195,17 +209,22 @@ async def get_file(req: Request, file_key: str):
 
 async def download_file(req: Request, file_key: str):
     user = utils.get_user_credentials_from_state(req)
+    print("user", user)
 
-    if not utils.user_owns_file(
-        user.key, file_key
-    ) or not utils.user_has_access_to_file(user.key, file_key):
+    user_owns_file = utils.user_owns_file(user.key, file_key)
+    user_has_access_to_file = utils.user_has_access_to_file(user.key, file_key)
+
+    if not user_owns_file or user_has_access_to_file:
         raise HTTPException(status_code=403, detail="User does not have access to file")
+
     try:
         file = db.tbl_files.fetch({"key": file_key}).items[0]
+        print(file)
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
     try:
         res = db.storage.get(file_key)
+        print(res)
         return StreamingResponse(
             content=res.iter_chunks(1024),
             media_type=file["content_type"],

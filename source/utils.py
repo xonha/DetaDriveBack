@@ -47,11 +47,12 @@ def user_owns_file(user_key: str, file_key: str) -> bool:
 
 
 def user_has_access_to_file(user_key: str, file_key: str) -> bool:
-    query = {"user_key": user_key, "file_key": file_key}
     try:
-        res = db.tbl_users_files.fetch(query).items[0]
+        res = db.tbl_users_files.fetch(
+            {"user_key": user_key, "file_key": file_key}
+        ).items[0]
         if res:
             return True
         return False
     except IndexError:
-        raise HTTPException(status_code=404, detail="File not found")
+        return False
